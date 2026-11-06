@@ -121,3 +121,17 @@ and would wrap the DEKs of newly created projects with it, which the new key
 cannot open. Rotation therefore always requires every server to be stopped;
 the command re-wraps all DEKs and rewrites `key_check` in one transaction, so
 a failure leaves the database unchanged.
+
+## Two Dockerfiles
+
+`Dockerfile` builds everything from source (UI, then Go) so `make docker` and
+`docker build .` work without other tools. GoReleaser already builds the
+binaries for every platform, so releases use `release.Dockerfile`, which only
+copies the prebuilt binary. Both produce the same runtime image: distroless
+`static:nonroot`, `/data` owned by the non-root user, and a `HEALTHCHECK`
+that runs `envily healthcheck` because the image has no shell or curl.
+
+## Node 26 in the image build
+
+Node 26 is the current LTS line. It no longer bundles corepack, so the image
+installs the pinned pnpm version with npm.

@@ -82,6 +82,9 @@ per principal. A user with `mustChangePassword` may call only `auth/me`,
 | GET | `/projects/{p}/compare` | member | `?envs=development,production` → `{environments, keys: {KEY: {env: {exists, version?, updatedAt?}}}}`, no values |
 | GET | `/projects/{p}/audit` | editor, owner | as `/audit`, limited to the project |
 
+Environment slugs `compare`, `settings`, and `audit` are reserved (they are UI
+routes next to `/p/{project}/{env}`).
+
 Roles: owner, editor, viewer. See the permission matrix in `internal/authz`.
 
 ## Secrets
