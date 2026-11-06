@@ -52,7 +52,7 @@ func Seal(key, plaintext, aad []byte) ([]byte, error) {
 	if _, err := rand.Read(out[1:]); err != nil {
 		return nil, fmt.Errorf("seal: reading nonce: %w", err)
 	}
-	return aead.Seal(out, out[1:], plaintext, aad), nil
+	return aead.Seal(out, out[1:], plaintext, aad), nil //nolint:gosec // G407 false positive: nonce read from crypto/rand above
 }
 
 // Open decrypts a value produced by Seal with the same key and aad.

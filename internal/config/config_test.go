@@ -122,3 +122,13 @@ func TestTrustedProxies(t *testing.T) {
 		t.Fatalf("got %v", got)
 	}
 }
+
+func TestLoadDatabaseNeedsNoKeyOrURL(t *testing.T) {
+	c, err := LoadDatabase(lookup(map[string]string{"ENVILY_DB_DSN": "/tmp/x.db"}))
+	if err != nil || c.DBDSN != "/tmp/x.db" || c.MasterKey != nil {
+		t.Fatalf("LoadDatabase: %+v %v", c, err)
+	}
+	if _, err := LoadDatabase(lookup(map[string]string{"ENVILY_DB_DRIVER": "mysql"})); err == nil {
+		t.Fatal("invalid driver accepted")
+	}
+}

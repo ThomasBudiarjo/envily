@@ -46,7 +46,14 @@ func Env(name string) (string, bool) { return os.LookupEnv(name) }
 
 // Load reads every variable through lookup and validates it. Errors name the
 // offending variable but never echo secret values.
-func Load(lookup Lookup) (Config, error) {
+func Load(lookup Lookup) (Config, error) { return load(lookup, true) }
+
+// LoadDatabase reads only the database and logging settings, for local
+// admin commands (migrate, backup) that need neither a public URL nor the
+// master key.
+func LoadDatabase(lookup Lookup) (Config, error) { return load(lookup, false) }
+
+func load(lookup Lookup, full bool) (Config, error) {
 	get := func(name, def string) string {
 		if v, ok := lookup(name); ok && strings.TrimSpace(v) != "" {
 			return strings.TrimSpace(v)
@@ -64,12 +71,17 @@ func Load(lookup Lookup) (Config, error) {
 		LogFormat:  get("ENVILY_LOG_FORMAT", "json"),
 	}
 
-	if raw := get("ENVILY_PUBLIC_URL", ""); raw == "" {
-		fail("ENVILY_PUBLIC_URL is required (for example https://secrets.example.com)")
-	} else if u, err := url.Parse(raw); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		fail("ENVILY_PUBLIC_URL must be an absolute http:// or https:// URL")
-	} else {
-		c.PublicURL = u
+	if full {
+		raw := get("ENVILY_PUBLIC_URL", "")
+		u, err := url.Parse(raw)
+		switch {
+		case raw == "":
+			fail("ENVILY_PUBLIC_URL is required (for example https://secrets.example.com)")
+		case err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "":
+			fail("ENVILY_PUBLIC_URL must be an absolute http:// or https:// URL")
+		default:
+			c.PublicURL = u
+		}
 	}
 
 	if c.DBDriver != "sqlite" && c.DBDriver != "postgres" {
@@ -84,11 +96,13 @@ func Load(lookup Lookup) (Config, error) {
 		fail("ENVILY_AUTO_MIGRATE must be true or false")
 	}
 
-	key, keyErr := loadMasterKey(lookup)
-	if keyErr != nil {
-		errs = append(errs, keyErr)
+	if full {
+		key, err := LoadMasterKey(lookup, "ENVILY_MASTER_KEY", "ENVILY_MASTER_KEY_FILE")
+		if err != nil {
+			errs = append(errs, err)
+		}
+		c.MasterKey = key
 	}
-	c.MasterKey = key
 
 	if c.SessionIdleTimeout, err = time.ParseDuration(get("ENVILY_SESSION_IDLE_TIMEOUT", "12h")); err != nil || c.SessionIdleTimeout <= 0 {
 		fail("ENVILY_SESSION_IDLE_TIMEOUT must be a positive Go duration such as 12h")
@@ -134,26 +148,26 @@ func parsePrefix(s string) (netip.Prefix, error) {
 	return netip.PrefixFrom(a.Unmap(), a.Unmap().BitLen()), nil
 }
 
-// loadMasterKey reads ENVILY_MASTER_KEY or ENVILY_MASTER_KEY_FILE (but not
-// both) and decodes it to 32 bytes.
-func loadMasterKey(lookup Lookup) ([]byte, error) {
-	inline, hasInline := lookup("ENVILY_MASTER_KEY")
-	path, hasFile := lookup("ENVILY_MASTER_KEY_FILE")
+// LoadMasterKey reads a base64 key from the variable inlineVar or from the
+// file named by fileVar (but not both) and decodes it to 32 bytes.
+func LoadMasterKey(lookup Lookup, inlineVar, fileVar string) ([]byte, error) {
+	inline, hasInline := lookup(inlineVar)
+	path, hasFile := lookup(fileVar)
 	hasInline = hasInline && strings.TrimSpace(inline) != ""
 	hasFile = hasFile && strings.TrimSpace(path) != ""
-	source := "ENVILY_MASTER_KEY"
+	source := inlineVar
 	switch {
 	case hasInline && hasFile:
-		return nil, errors.New("set only one of ENVILY_MASTER_KEY and ENVILY_MASTER_KEY_FILE")
+		return nil, fmt.Errorf("set only one of %s and %s", inlineVar, fileVar)
 	case hasFile:
-		source = "ENVILY_MASTER_KEY_FILE"
+		source = fileVar
 		raw, err := os.ReadFile(strings.TrimSpace(path))
 		if err != nil {
-			return nil, fmt.Errorf("ENVILY_MASTER_KEY_FILE: cannot read key file: %w", errors.Unwrap(err))
+			return nil, fmt.Errorf("%s: cannot read key file: %w", fileVar, errors.Unwrap(err))
 		}
 		inline = string(raw)
 	case !hasInline:
-		return nil, errors.New("ENVILY_MASTER_KEY or ENVILY_MASTER_KEY_FILE is required (generate one with `envily keygen`)")
+		return nil, fmt.Errorf("%s or %s is required (generate one with `envily keygen`)", inlineVar, fileVar)
 	}
 	key, err := base64.StdEncoding.DecodeString(strings.TrimSpace(inline))
 	if err != nil {

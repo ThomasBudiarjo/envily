@@ -57,6 +57,9 @@ func newRoot(app *App) *cobra.Command {
 	root.AddCommand(
 		newServerCmd(app),
 		newVersionCmd(app),
+		newKeygenCmd(app),
+		newMigrateCmd(app),
+		newBackupCmd(app),
 	)
 	return root
 }

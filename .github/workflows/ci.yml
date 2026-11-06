@@ -25,6 +25,11 @@ jobs:
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
       - run: cd web && pnpm install --frozen-lockfile
+      - uses: sqlc-dev/setup-sqlc@v4
+        with:
+          sqlc-version: 1.31.1
+      - name: Generated code is up to date
+        run: make generate && git diff --exit-code
       - uses: golangci/golangci-lint-action@v8
         with:
           version: v2.15.0
@@ -47,3 +52,12 @@ jobs:
           cache-dependency-path: web/pnpm-lock.yaml
       - run: cd web && pnpm install --frozen-lockfile
       - run: make test
+
+  test-pg:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+      - run: make test-pg

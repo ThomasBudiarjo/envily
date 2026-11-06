@@ -8,8 +8,8 @@ import (
 
 // Token prefixes help secret scanners recognise leaked tokens.
 const (
-	ServiceTokenPrefix  = "envily_svc_"
-	PersonalTokenPrefix = "envily_pat_"
+	ServiceTokenPrefix  = "envily_svc_" //nolint:gosec // G101: a prefix, not a credential
+	PersonalTokenPrefix = "envily_pat_" //nolint:gosec // G101: a prefix, not a credential
 )
 
 // NewToken returns a new random token (32 bytes, base64url) with the given
