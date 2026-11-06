@@ -88,6 +88,7 @@ func newRoot(app *App) *cobra.Command {
 		newKeygenCmd(app),
 		newMigrateCmd(app),
 		newBackupCmd(app),
+		newRotateMasterKeyCmd(app),
 		newAdminCmd(app),
 	)
 	usageArgs(root)

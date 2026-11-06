@@ -112,3 +112,12 @@ The UI routes `/p/[project]/compare`, `/p/[project]/settings`, and
 one of those slugs could never be opened in the web UI. The server rejects
 `compare`, `settings`, and `audit` as environment slugs (on create and on
 rename) with `validation_failed`.
+
+## `rotate-master-key` requires a stopped server, on both databases
+
+The plan allows running the rotation against PostgreSQL under an advisory
+lock while servers run. A running server keeps the old master key in memory
+and would wrap the DEKs of newly created projects with it, which the new key
+cannot open. Rotation therefore always requires every server to be stopped;
+the command re-wraps all DEKs and rewrites `key_check` in one transaction, so
+a failure leaves the database unchanged.

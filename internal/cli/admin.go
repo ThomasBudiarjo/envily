@@ -210,3 +210,50 @@ func serviceErr(err error) error {
 	}
 	return withCode(code, errors.New(msg))
 }
+
+func newRotateMasterKeyCmd(app *App) *cobra.Command {
+	var newKeyFile string
+	cmd := &cobra.Command{
+		Use:   "rotate-master-key --new-key-file PATH",
+		Short: "Re-wrap every project key with a new master key (server must be stopped)",
+		Long: "Re-wrap every project's data encryption key with the master key in PATH\n" +
+			"and record it as the current key, in one transaction. The current key is\n" +
+			"read from ENVILY_MASTER_KEY or ENVILY_MASTER_KEY_FILE. Secret values are not\n" +
+			"re-encrypted. Stop the server first; afterwards, configure the new key and\n" +
+			"start the server again. Keep the old key until the new one is confirmed to work.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if newKeyFile == "" {
+				return withCode(ExitUsage, errors.New("--new-key-file is required (create one with `envily keygen`)"))
+			}
+			lookup := configLookup(app, cmd.Flags())
+			oldKey, err := config.LoadMasterKey(lookup, "ENVILY_MASTER_KEY", "ENVILY_MASTER_KEY_FILE")
+			if err != nil {
+				return err
+			}
+			defer crypto.Zero(oldKey)
+			newKey, err := config.LoadMasterKey(func(name string) (string, bool) {
+				return newKeyFile, name == "--new-key-file"
+			}, "", "--new-key-file")
+			if err != nil {
+				return err
+			}
+			defer crypto.Zero(newKey)
+			d, _, err := openLocalDB(app, cmd, true)
+			if err != nil {
+				return err
+			}
+			defer d.Close()
+			n, version, err := server.RotateMasterKey(cmd.Context(), d, oldKey, newKey)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(app.Stdout, "re-wrapped the data keys of %d project(s); root key version is now %d\n"+
+				"configure the new key (ENVILY_MASTER_KEY or ENVILY_MASTER_KEY_FILE) and start the server\n", n, version)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&newKeyFile, "new-key-file", "", "file containing the new base64 master key")
+	addDBFlags(cmd)
+	return cmd
+}
