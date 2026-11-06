@@ -1,0 +1,57 @@
+# Envily with PostgreSQL. Use instead of docker-compose.yml:
+#
+#   docker compose -f docker-compose.postgres.yml up -d
+#
+# Back up PostgreSQL with pg_dump; `envily backup` is for SQLite only.
+services:
+  envily:
+    image: ghcr.io/thomasbudiarjo/envily:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ENVILY_PUBLIC_URL: ${ENVILY_PUBLIC_URL:?set ENVILY_PUBLIC_URL, e.g. https://secrets.example.com}
+      ENVILY_MASTER_KEY_FILE: /run/secrets/envily_master_key
+      ENVILY_DB_DRIVER: postgres
+      ENVILY_DB_DSN: postgres://envily:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/envily?sslmode=disable
+      ENVILY_SETUP_TOKEN: ${ENVILY_SETUP_TOKEN:-}
+      ENVILY_TRUSTED_PROXIES: 172.16.0.0/12
+    secrets:
+      - envily_master_key
+    expose:
+      - "8080"
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: envily
+      POSTGRES_DB: envily
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "envily"]
+      interval: 5s
+      retries: 10
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ENVILY_DOMAIN: ${ENVILY_DOMAIN:?set ENVILY_DOMAIN, e.g. secrets.example.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+
+secrets:
+  envily_master_key:
+    file: ./secrets/master.key
+
+volumes:
+  postgres-data:
+  caddy-data:

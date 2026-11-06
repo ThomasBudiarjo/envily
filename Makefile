@@ -6,6 +6,7 @@ PKG     := github.com/thomasbudiarjo/envily/internal/version
 LDFLAGS := -s -w -X $(PKG).Version=$(VERSION) -X $(PKG).Commit=$(COMMIT) -X $(PKG).Date=$(DATE)
 
 DEV_DATA     := ./data
+DOCKER       ?= docker
 DEV_WEB_PORT ?= 5173
 DEV_ENV      := ENVILY_PUBLIC_URL=http://localhost:$(DEV_WEB_PORT) \
             ENVILY_DB_DSN=$(DEV_DATA)/envily.db \
@@ -64,7 +65,7 @@ lint:
 
 ## docker: build the container image
 docker:
-	docker build --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) -t envily:$(VERSION) .
+	$(DOCKER) build --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg DATE=$(DATE) -t envily:$(VERSION) -t envily:latest .
 
 clean:
 	rm -rf bin web/.svelte-kit

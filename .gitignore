@@ -9,3 +9,4 @@
 !.env.example
 /.amp/in/
 coverage.out
+/deploy/secrets/

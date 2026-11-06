@@ -1,0 +1,46 @@
+# Envily with SQLite: one container, one volume.
+#
+#   mkdir -p secrets && docker run --rm envily keygen > secrets/master.key
+#   chmod 600 secrets/master.key
+#   ENVILY_PUBLIC_URL=https://secrets.example.com docker compose up -d
+#
+# Keep secrets/master.key safe and separate from database backups: without
+# it the data cannot be decrypted.
+services:
+  envily:
+    image: ghcr.io/thomasbudiarjo/envily:latest
+    restart: unless-stopped
+    environment:
+      ENVILY_PUBLIC_URL: ${ENVILY_PUBLIC_URL:?set ENVILY_PUBLIC_URL, e.g. https://secrets.example.com}
+      ENVILY_MASTER_KEY_FILE: /run/secrets/envily_master_key
+      # Optional: require this token to create the first admin.
+      ENVILY_SETUP_TOKEN: ${ENVILY_SETUP_TOKEN:-}
+      # The reverse proxy below runs on the same Docker network.
+      ENVILY_TRUSTED_PROXIES: 172.16.0.0/12
+    secrets:
+      - envily_master_key
+    volumes:
+      - envily-data:/data
+    # Not published: reach it through the reverse proxy.
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ENVILY_DOMAIN: ${ENVILY_DOMAIN:?set ENVILY_DOMAIN, e.g. secrets.example.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+
+secrets:
+  envily_master_key:
+    file: ./secrets/master.key
+
+volumes:
+  envily-data:
+  caddy-data:

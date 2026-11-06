@@ -1,0 +1,58 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+before:
+  hooks:
+    # The web UI is embedded in the binary, so build it first.
+    - make web
+
+builds:
+  - id: envily
+    main: ./cmd/envily
+    binary: envily
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/thomasbudiarjo/envily/internal/version.Version={{ .Version }}
+      - -X github.com/thomasbudiarjo/envily/internal/version.Commit={{ .ShortCommit }}
+      - -X github.com/thomasbudiarjo/envily/internal/version.Date={{ .Date }}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE*
+      - docs/*
+
+checksum:
+  name_template: checksums.txt
+
+dockers_v2:
+  - ids: [envily]
+    dockerfile: release.Dockerfile
+    extra_files:
+      - deploy/empty
+    images:
+      - ghcr.io/thomasbudiarjo/envily
+    tags:
+      - "{{ .Version }}"
+      - "{{ if not .Prerelease }}latest{{ end }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      org.opencontainers.image.title: envily
+      org.opencontainers.image.source: "{{ .GitURL }}"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+
+changelog:
+  sort: asc

@@ -1,0 +1,15 @@
+.git
+.amp
+.github
+bin
+data
+dist
+**/node_modules
+web/build
+web/.svelte-kit
+web/test-results
+web/playwright-report
+*.db
+*.db-*
+.env
+.env.*

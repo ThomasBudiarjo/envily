@@ -1,0 +1,6 @@
+# Caddy terminates TLS (automatic certificates) and forwards to Envily.
+# ENVILY_PUBLIC_URL must be https://{$ENVILY_DOMAIN}.
+{$ENVILY_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy envily:8080
+}

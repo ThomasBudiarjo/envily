@@ -1,9 +1,14 @@
 package cli
 
 import (
+	"context"
 	"fmt"
+	"net"
+	"net/http"
 	"os/signal"
+	"strings"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -80,4 +85,58 @@ func newVersionCmd(app *App) *cobra.Command {
 			fmt.Fprintln(app.Stdout, version.String())
 		},
 	}
+}
+
+func newHealthcheckCmd(app *App) *cobra.Command {
+	var timeout time.Duration
+	cmd := &cobra.Command{
+		Use:   "healthcheck",
+		Short: "Exit 0 when the local server is ready (for container health checks)",
+		Long: "Request /readyz from the server listening on ENVILY_ADDR (default :8080)\n" +
+			"and exit 0 when it answers 200. Container images have no curl or wget.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			addr, ok := app.Getenv("ENVILY_ADDR")
+			if !ok || strings.TrimSpace(addr) == "" {
+				addr = ":8080"
+			}
+			u, err := readyURL(strings.TrimSpace(addr))
+			if err != nil {
+				return withCode(ExitUsage, err)
+			}
+			ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
+			defer cancel()
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+			if err != nil {
+				return err
+			}
+			res, err := http.DefaultClient.Do(req)
+			if err != nil {
+				return fmt.Errorf("server not reachable at %s", u)
+			}
+			res.Body.Close()
+			if res.StatusCode != http.StatusOK {
+				return fmt.Errorf("server not ready: %s answered %d", u, res.StatusCode)
+			}
+			return nil
+		},
+	}
+	cmd.Flags().DurationVar(&timeout, "timeout", 3*time.Second, "how long to wait for an answer")
+	return cmd
+}
+
+// readyURL turns a listen address into the URL of /readyz on this host;
+// wildcard and empty hosts become loopback.
+func readyURL(addr string) (string, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", fmt.Errorf("ENVILY_ADDR %q is not host:port", addr)
+	}
+	switch host {
+	case "", "0.0.0.0":
+		host = "127.0.0.1"
+	case "::":
+		host = "::1"
+	}
+	return "http://" + net.JoinHostPort(host, port) + "/readyz", nil
 }

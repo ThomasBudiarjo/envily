@@ -308,3 +308,20 @@ func TestMergeEnv(t *testing.T) {
 		t.Fatalf("no override: %v", got)
 	}
 }
+
+func TestReadyURL(t *testing.T) {
+	for addr, want := range map[string]string{
+		":8080":          "http://127.0.0.1:8080/readyz",
+		"0.0.0.0:9000":   "http://127.0.0.1:9000/readyz",
+		"[::]:8080":      "http://[::1]:8080/readyz",
+		"10.0.0.5:8080":  "http://10.0.0.5:8080/readyz",
+		"localhost:8081": "http://localhost:8081/readyz",
+	} {
+		if got, err := readyURL(addr); err != nil || got != want {
+			t.Errorf("readyURL(%q) = %q, %v; want %q", addr, got, err, want)
+		}
+	}
+	if _, err := readyURL("8080"); err == nil {
+		t.Error("readyURL accepted an address without a port separator")
+	}
+}
