@@ -14,6 +14,7 @@ import (
 	"github.com/thomasbudiarjo/envily/internal/config"
 	"github.com/thomasbudiarjo/envily/internal/crypto"
 	"github.com/thomasbudiarjo/envily/internal/httpapi"
+	"github.com/thomasbudiarjo/envily/internal/service"
 	"github.com/thomasbudiarjo/envily/internal/store"
 	"github.com/thomasbudiarjo/envily/internal/version"
 	"github.com/thomasbudiarjo/envily/web"
@@ -46,7 +47,13 @@ func Run(ctx context.Context, cfg config.Config, log *slog.Logger) error {
 		return kr.VerifyKeyCheck(sealed)
 	}
 
-	h := httpapi.New(httpapi.Deps{Config: cfg, Logger: log, UI: web.FS(), Ready: ready})
+	svc := service.New(d, kr, service.Options{
+		SessionIdleTimeout: cfg.SessionIdleTimeout, SessionMaxAge: cfg.SessionMaxAge,
+		SetupToken: cfg.SetupToken, AuditRetentionDays: cfg.AuditRetentionDays, Logger: log,
+	})
+	go svc.RunMaintenance(ctx)
+
+	h := httpapi.New(httpapi.Deps{Config: cfg, Logger: log, UI: web.FS(), Ready: ready, Service: svc})
 	srv := &http.Server{
 		Addr:              cfg.Addr,
 		Handler:           h,

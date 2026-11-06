@@ -112,6 +112,12 @@ func testMeta(t *testing.T, s store.DB) {
 	v, err := s.Meta().Get(ctx, store.MetaKeyCheck)
 	must(t, err)
 	eq(t, "meta value", v, "b")
+	ok, err := s.Meta().Insert(ctx, store.MetaSetupDone, "1")
+	must(t, err)
+	eq(t, "first insert", ok, true)
+	ok, err = s.Meta().Insert(ctx, store.MetaSetupDone, "2")
+	must(t, err)
+	eq(t, "second insert", ok, false)
 	must(t, s.Ping(ctx))
 }
 

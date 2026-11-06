@@ -590,3 +590,8 @@ func (s meta) Get(ctx context.Context, key string) (string, error) {
 func (s meta) Set(ctx context.Context, key, value string) error {
 	return mapErr(s.w.SetMeta(ctx, db.SetMetaParams{Key: key, Value: value}))
 }
+
+func (s meta) Insert(ctx context.Context, key, value string) (bool, error) {
+	n, err := s.w.InsertMeta(ctx, db.InsertMetaParams{Key: key, Value: value})
+	return n == 1, mapErr(err)
+}

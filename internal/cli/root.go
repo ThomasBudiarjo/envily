@@ -60,6 +60,7 @@ func newRoot(app *App) *cobra.Command {
 		newKeygenCmd(app),
 		newMigrateCmd(app),
 		newBackupCmd(app),
+		newAdminCmd(app),
 	)
 	return root
 }

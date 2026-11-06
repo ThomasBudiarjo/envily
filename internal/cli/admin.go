@@ -4,12 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/thomasbudiarjo/envily/internal/authz"
 	"github.com/thomasbudiarjo/envily/internal/config"
 	"github.com/thomasbudiarjo/envily/internal/crypto"
 	"github.com/thomasbudiarjo/envily/internal/server"
+	"github.com/thomasbudiarjo/envily/internal/service"
 	"github.com/thomasbudiarjo/envily/internal/store"
 )
 
@@ -102,4 +105,108 @@ func newBackupCmd(app *App) *cobra.Command {
 	cmd.Flags().StringVar(&out, "out", "", "output file (must not exist)")
 	addDBFlags(cmd)
 	return cmd
+}
+
+func newAdminCmd(app *App) *cobra.Command {
+	cmd := &cobra.Command{Use: "admin", Short: "Local administration commands (run on the server host)"}
+	cmd.AddCommand(newAdminCreateUserCmd(app), newAdminResetPasswordCmd(app))
+	return cmd
+}
+
+// adminService opens the database for a local admin command. It needs no
+// master key: user management never touches secret values.
+func adminService(app *App, cmd *cobra.Command) (*service.Service, func(), error) {
+	d, _, err := openLocalDB(app, cmd, true)
+	if err != nil {
+		return nil, nil, err
+	}
+	return service.New(d, nil, service.Options{}), func() { d.Close() }, nil
+}
+
+func newAdminCreateUserCmd(app *App) *cobra.Command {
+	var email, name string
+	var isAdmin bool
+	cmd := &cobra.Command{
+		Use:   "create-user --email EMAIL [--name NAME] [--admin]",
+		Short: "Create a user with a temporary password",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if email == "" {
+				return withCode(ExitUsage, errors.New("--email is required"))
+			}
+			if name == "" {
+				name = strings.SplitN(email, "@", 2)[0]
+			}
+			svc, done, err := adminService(app, cmd)
+			if err != nil {
+				return err
+			}
+			defer done()
+			u, pw, err := svc.CreateUser(cmd.Context(), authz.System, service.CreateUserInput{Email: email, Name: name, IsAdmin: isAdmin})
+			if err != nil {
+				return serviceErr(err)
+			}
+			fmt.Fprintf(app.Stdout, "created user %s\ntemporary password: %s\n(it must be changed at first login)\n", u.Email, pw)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&email, "email", "", "email address")
+	cmd.Flags().StringVar(&name, "name", "", "display name (default: part of the email before @)")
+	cmd.Flags().BoolVar(&isAdmin, "admin", false, "make the user an instance admin")
+	addDBFlags(cmd)
+	return cmd
+}
+
+func newAdminResetPasswordCmd(app *App) *cobra.Command {
+	var email string
+	cmd := &cobra.Command{
+		Use:   "reset-password --email EMAIL",
+		Short: "Set a random temporary password and sign the user out everywhere",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if email == "" {
+				return withCode(ExitUsage, errors.New("--email is required"))
+			}
+			svc, done, err := adminService(app, cmd)
+			if err != nil {
+				return err
+			}
+			defer done()
+			u, err := svc.AdminUserByEmail(cmd.Context(), email)
+			if err != nil {
+				return serviceErr(err)
+			}
+			_, pw, err := svc.UpdateUser(cmd.Context(), authz.System, u.ID, service.UpdateUserInput{ResetPassword: true})
+			if err != nil {
+				return serviceErr(err)
+			}
+			fmt.Fprintf(app.Stdout, "temporary password for %s: %s\n(it must be changed at next login)\n", u.Email, pw)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&email, "email", "", "email address")
+	addDBFlags(cmd)
+	return cmd
+}
+
+// serviceErr turns service errors into readable messages and exit codes.
+func serviceErr(err error) error {
+	se := service.AsError(err)
+	if se == nil {
+		return err
+	}
+	msg := se.Message
+	for f, m := range se.Details {
+		msg += fmt.Sprintf("\n  %s: %s", f, m)
+	}
+	code := ExitError
+	switch se.Code {
+	case service.CodeNotFound:
+		code = ExitNotFound
+	case service.CodeForbidden:
+		code = ExitForbidden
+	case service.CodeUnauthorized, service.CodeInvalidCredentials:
+		code = ExitUnauthorized
+	}
+	return withCode(code, errors.New(msg))
 }

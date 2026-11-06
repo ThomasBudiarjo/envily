@@ -20,6 +20,7 @@ var (
 const (
 	MetaKeyCheck       = "key_check"
 	MetaRootKeyVersion = "root_key_version"
+	MetaSetupDone      = "setup_done"
 )
 
 type User struct {
@@ -274,6 +275,8 @@ type Audit interface {
 type Meta interface {
 	Get(ctx context.Context, key string) (string, error)
 	Set(ctx context.Context, key, value string) error
+	// Insert sets key only if it is not set yet and reports whether it did.
+	Insert(ctx context.Context, key, value string) (bool, error)
 }
 
 // Store is the data access interface used by the service layer.

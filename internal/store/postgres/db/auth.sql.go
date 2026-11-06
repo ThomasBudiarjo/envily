@@ -214,6 +214,23 @@ func (q *Queries) GetUserByEmail(ctx context.Context, arg GetUserByEmailParams) 
 	return i, err
 }
 
+const insertMeta = `-- name: InsertMeta :execrows
+INSERT INTO meta (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING
+`
+
+type InsertMetaParams struct {
+	Key   string
+	Value string
+}
+
+func (q *Queries) InsertMeta(ctx context.Context, arg InsertMetaParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, insertMeta, arg.Key, arg.Value)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const listUsers = `-- name: ListUsers :many
 SELECT id, email, name, password_hash, is_admin, must_change_password, created_at, updated_at, disabled_at FROM users ORDER BY email
 `

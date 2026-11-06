@@ -47,3 +47,6 @@ DELETE FROM sessions WHERE user_id = sqlc.arg(user_id) AND id <> sqlc.arg(except
 
 -- name: DeleteExpiredSessions :exec
 DELETE FROM sessions WHERE expires_at <= sqlc.arg(now);
+
+-- name: InsertMeta :execrows
+INSERT INTO meta (key, value) VALUES (sqlc.arg(key), sqlc.arg(value)) ON CONFLICT (key) DO NOTHING;

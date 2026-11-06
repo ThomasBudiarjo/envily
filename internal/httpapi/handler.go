@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/thomasbudiarjo/envily/internal/config"
+	"github.com/thomasbudiarjo/envily/internal/service"
 )
 
 var startTime = time.Now()
@@ -19,21 +20,25 @@ type Deps struct {
 	Config config.Config
 	Logger *slog.Logger
 	UI     fs.FS
+	// Service may be nil in tests that only exercise static routes.
+	Service *service.Service
 	// Ready reports whether the server can serve requests (database
 	// reachable, master key valid).
 	Ready func(ctx context.Context) error
 }
 
 type Handler struct {
-	cfg   config.Config
-	log   *slog.Logger
-	ready func(ctx context.Context) error
-	csp   string
-	root  http.Handler
+	cfg    config.Config
+	log    *slog.Logger
+	ready  func(ctx context.Context) error
+	csp    string
+	root   http.Handler
+	svc    *service.Service
+	limits *limits
 }
 
 func New(d Deps) *Handler {
-	h := &Handler{cfg: d.Config, log: d.Logger, ready: d.Ready}
+	h := &Handler{cfg: d.Config, log: d.Logger, ready: d.Ready, svc: d.Service, limits: newLimits()}
 	ui := newSPA(d.UI)
 	h.csp = buildCSP(ui.scriptHashes())
 
@@ -42,12 +47,18 @@ func New(d Deps) *Handler {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 	mux.HandleFunc("GET /readyz", h.readyz)
+	if h.svc != nil {
+		h.routes(mux)
+	}
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, errNotFound)
 	})
 	mux.Handle("/", ui)
 
 	var root http.Handler = mux
+	if h.svc != nil {
+		root = h.authenticate(root)
+	}
 	root = bodyLimit(root)
 	root = h.accessLog(root)
 	root = h.securityHeaders(root)
@@ -88,4 +99,21 @@ func buildCSP(hashes []string) string {
 		"base-uri 'self'",
 		"form-action 'self'",
 	}, "; ")
+}
+
+func (h *Handler) routes(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/v1/setup/status", h.api(h.setupStatus))
+	mux.HandleFunc("POST /api/v1/setup", h.api(h.setup))
+	mux.HandleFunc("POST /api/v1/auth/login", h.api(h.login))
+	mux.HandleFunc("POST /api/v1/auth/cli-login", h.api(h.cliLogin))
+	mux.HandleFunc("POST /api/v1/auth/logout", h.authed(h.logout))
+	mux.HandleFunc("GET /api/v1/auth/me", h.authed(h.me))
+	mux.HandleFunc("POST /api/v1/auth/password", h.authed(h.changePassword))
+	mux.HandleFunc("GET /api/v1/me/tokens", h.authed(h.listMyTokens))
+	mux.HandleFunc("POST /api/v1/me/tokens", h.authed(h.createMyToken))
+	mux.HandleFunc("DELETE /api/v1/me/tokens/{id}", h.authed(h.revokeMyToken))
+	mux.HandleFunc("GET /api/v1/users", h.authed(h.listUsers))
+	mux.HandleFunc("POST /api/v1/users", h.authed(h.createUser))
+	mux.HandleFunc("PATCH /api/v1/users/{id}", h.authed(h.updateUser))
+	mux.HandleFunc("GET /api/v1/audit", h.authed(h.instanceAudit))
 }
