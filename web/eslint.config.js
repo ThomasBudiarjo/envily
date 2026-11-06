@@ -12,7 +12,10 @@ export default ts.config(
 		rules: {
 			'no-undef': 'off',
 			'@typescript-eslint/no-explicit-any': 'error',
-			'@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
+			'@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+			// The SPA is always served at the root of the Go server (no paths.base),
+			// so plain paths are correct and resolve() would add nothing.
+			'svelte/no-navigation-without-resolve': 'off'
 		}
 	},
 	{
