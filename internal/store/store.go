@@ -213,6 +213,8 @@ type Projects interface {
 	ListForUser(ctx context.Context, userID string) ([]Project, error)
 	Update(ctx context.Context, id, name, slug string, at time.Time) error
 	UpdateDEK(ctx context.Context, id string, wrapped []byte, rootVersion int64) error
+	// Touch sets updated_at, marking the project as changed.
+	Touch(ctx context.Context, id string, at time.Time) error
 	Delete(ctx context.Context, id string) error
 
 	AddMember(ctx context.Context, m Member) error

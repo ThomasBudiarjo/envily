@@ -229,6 +229,10 @@ func (s projects) UpdateDEK(ctx context.Context, id string, wrapped []byte, root
 	return rows(s.w.UpdateProjectDEK(ctx, db.UpdateProjectDEKParams{ID: id, WrappedDek: wrapped, DekRootVersion: rootVersion}))
 }
 
+func (s projects) Touch(ctx context.Context, id string, at time.Time) error {
+	return mapErr(s.w.TouchProject(ctx, db.TouchProjectParams{ID: id, UpdatedAt: ms(at)}))
+}
+
 func (s projects) Delete(ctx context.Context, id string) error {
 	return rows(s.w.DeleteProject(ctx, db.DeleteProjectParams{ID: id}))
 }

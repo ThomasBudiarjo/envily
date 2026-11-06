@@ -427,6 +427,20 @@ func (q *Queries) RemoveMember(ctx context.Context, arg RemoveMemberParams) (int
 	return result.RowsAffected()
 }
 
+const touchProject = `-- name: TouchProject :exec
+UPDATE projects SET updated_at = $1 WHERE id = $2
+`
+
+type TouchProjectParams struct {
+	UpdatedAt int64
+	ID        string
+}
+
+func (q *Queries) TouchProject(ctx context.Context, arg TouchProjectParams) error {
+	_, err := q.db.ExecContext(ctx, touchProject, arg.UpdatedAt, arg.ID)
+	return err
+}
+
 const updateEnvironment = `-- name: UpdateEnvironment :execrows
 UPDATE environments SET name = $1, slug = $2, position = $3
 WHERE id = $4

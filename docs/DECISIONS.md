@@ -60,3 +60,22 @@ testcontainers, creating a fresh database per test. Without Docker they skip,
 except when `CI` is set. Podman works too:
 `podman system service --time=0 unix:///tmp/podman.sock &` then
 `DOCKER_HOST=unix:///tmp/podman.sock TESTCONTAINERS_RYUK_DISABLED=true make test-pg`.
+
+## Instance admins and projects they are not members of
+
+The plan lets admins list every project and add themselves, but the
+permission matrix gives a non-member admin no project permissions. Admins
+therefore see such projects (in the list, the detail page, members, and
+environments) with `role: null`, may add only themselves as a member, and
+get `403` for everything else. Everyone else gets `404` for projects they
+are not a member of, the same as for projects that do not exist.
+
+## Adding members by email
+
+`POST /projects/{p}/members` accepts `email` as an alternative to `userId`,
+because project owners who are not admins cannot list instance users.
+
+## Members may leave a project
+
+Owners manage members; any member may also remove themselves. The last
+owner can neither leave nor be demoted (`last_owner`).

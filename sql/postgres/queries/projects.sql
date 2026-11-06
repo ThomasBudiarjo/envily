@@ -71,3 +71,6 @@ WHERE id = sqlc.arg(id);
 
 -- name: DeleteEnvironment :execrows
 DELETE FROM environments WHERE id = sqlc.arg(id);
+
+-- name: TouchProject :exec
+UPDATE projects SET updated_at = sqlc.arg(updated_at) WHERE id = sqlc.arg(id);

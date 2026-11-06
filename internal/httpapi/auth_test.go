@@ -125,7 +125,7 @@ func TestLoginFailuresAreUniform(t *testing.T) {
 }
 
 func TestLoginRateLimit(t *testing.T) {
-	e := newEnv(t)
+	e := newEnv(t, withRealLimits())
 	e.setupAdmin() // uses one token of the per-IP bucket
 	var last resp
 	for i := 0; i < 6; i++ {

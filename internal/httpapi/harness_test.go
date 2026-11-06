@@ -53,11 +53,21 @@ func (l lockedWriter) Write(p []byte) (int, error) {
 	return l.w.Write(p)
 }
 
-type envOption func(*config.Config, *service.Options)
+type envSettings struct {
+	cfg  config.Config
+	svc  service.Options
+	real bool // keep production rate limits
+}
+
+type envOption func(*envSettings)
 
 func withSetupToken(tok string) envOption {
-	return func(c *config.Config, o *service.Options) { c.SetupToken, o.SetupToken = tok, tok }
+	return func(s *envSettings) { s.cfg.SetupToken, s.svc.SetupToken = tok, tok }
 }
+
+// withRealLimits keeps the production rate limits; other tests raise them
+// because every test client shares one IP.
+func withRealLimits() envOption { return func(s *envSettings) { s.real = true } }
 
 // newEnv starts the full API on a temporary SQLite database.
 func newEnv(t *testing.T, opts ...envOption) *env {
@@ -84,11 +94,18 @@ func newEnv(t *testing.T, opts ...envOption) *env {
 	cfg := config.Config{PublicURL: u, SessionIdleTimeout: 12 * time.Hour, SessionMaxAge: 168 * time.Hour}
 	so := service.Options{SessionIdleTimeout: cfg.SessionIdleTimeout, SessionMaxAge: cfg.SessionMaxAge,
 		Clock: e.clock, Logger: log}
+	st := envSettings{cfg: cfg, svc: so}
 	for _, o := range opts {
-		o(&cfg, &so)
+		o(&st)
 	}
-	svc := service.New(d, kr, so)
-	srv.Config.Handler = New(Deps{Config: cfg, Logger: log, UI: fstest.MapFS{}, Service: svc})
+	svc := service.New(d, kr, st.svc)
+	h := New(Deps{Config: st.cfg, Logger: log, UI: fstest.MapFS{}, Service: svc})
+	if !st.real {
+		h.limits.loginIP = newLimiterSet(1000, 1000)
+		h.limits.loginEmail = newLimiterSet(1000, 1000)
+		h.limits.api = newLimiterSet(10000, 10000)
+	}
+	srv.Config.Handler = h
 	return e
 }
 
@@ -196,6 +213,18 @@ func (e *env) login(email, password string) *client {
 	e.t.Helper()
 	c := e.browser()
 	c.do("POST", "/api/v1/auth/login", map[string]string{"email": email, "password": password}).want(http.StatusOK)
+	return c
+}
+
+// newUser creates a user via the admin and returns a browser signed in
+// with a permanent password.
+func (e *env) newUser(admin *client, email string, isAdmin bool) *client {
+	e.t.Helper()
+	r := admin.do("POST", "/api/v1/users", map[string]any{"email": email, "name": email, "isAdmin": isAdmin}).want(http.StatusCreated)
+	tmp := r.json()["temporaryPassword"].(string)
+	c := e.login(email, tmp)
+	c.do("POST", "/api/v1/auth/password", map[string]string{"currentPassword": tmp, "newPassword": adminPassword}).
+		want(http.StatusNoContent)
 	return c
 }
 

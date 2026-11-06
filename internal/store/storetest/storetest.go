@@ -216,6 +216,10 @@ func testProjects(t *testing.T, s store.DB) {
 	must(t, s.Projects().Update(ctx, p.ID, "Website", "website", t0.Add(time.Hour)))
 	wantErr(t, s.Projects().Update(ctx, q.ID, "x", "website", t0), store.ErrConflict)
 	must(t, s.Projects().UpdateDEK(ctx, p.ID, []byte{9}, 2))
+	must(t, s.Projects().Touch(ctx, q.ID, t0.Add(2*time.Hour)))
+	if got, _ := s.Projects().Get(ctx, q.ID); !got.UpdatedAt.Equal(t0.Add(2 * time.Hour)) {
+		t.Fatalf("touch not persisted: %v", got.UpdatedAt)
+	}
 	got, _ = s.Projects().Get(ctx, p.ID)
 	if got.Slug != "website" || got.Name != "Website" || got.DEKRootVersion != 2 || !bytes.Equal(got.WrappedDEK, []byte{9}) {
 		t.Fatalf("project after update %+v", got)

@@ -231,6 +231,7 @@ func checkPassword(v validation, field, pw string) {
 }
 
 var (
+	slugRe    = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
 	nonSlugRe = regexp.MustCompile(`[^a-z0-9]+`)
 	keyRe     = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]{0,254}$`)
 )
@@ -242,6 +243,12 @@ func Slugify(name string) string {
 		s = strings.TrimRight(s[:63], "-")
 	}
 	return s
+}
+
+func checkSlug(v validation, field, slug string) {
+	if !slugRe.MatchString(slug) {
+		v.add(field, "must be 1-63 lowercase letters, digits, or dashes, starting with a letter or digit")
+	}
 }
 
 // ValidKey reports whether key is a valid secret key (environment variable name).
