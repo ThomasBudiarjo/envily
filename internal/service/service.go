@@ -251,6 +251,17 @@ func checkSlug(v validation, field, slug string) {
 	}
 }
 
+// reservedEnvSlugs are UI routes next to /p/{project}/{env}; an environment
+// with one of these slugs could never be opened in the web UI.
+var reservedEnvSlugs = map[string]bool{"compare": true, "settings": true, "audit": true}
+
+func checkEnvSlug(v validation, field, slug string) {
+	checkSlug(v, field, slug)
+	if reservedEnvSlugs[slug] {
+		v.add(field, "is reserved")
+	}
+}
+
 // ValidKey reports whether key is a valid secret key (environment variable name).
 func ValidKey(key string) bool { return keyRe.MatchString(key) }
 

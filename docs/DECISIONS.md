@@ -104,3 +104,11 @@ owner can neither leave nor be demoted (`last_owner`).
 - Output is plain text without colour for now (the plan allows colour on a
   TTY only; none is needed yet).
 - Argument and flag errors exit with 2, like other usage errors.
+
+## Reserved environment slugs
+
+The UI routes `/p/[project]/compare`, `/p/[project]/settings`, and
+`/p/[project]/audit` sit next to `/p/[project]/[env]`, so an environment with
+one of those slugs could never be opened in the web UI. The server rejects
+`compare`, `settings`, and `audit` as environment slugs (on create and on
+rename) with `validation_failed`.

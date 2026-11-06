@@ -463,7 +463,7 @@ func (s *Service) CreateEnvironment(ctx context.Context, p *authz.Principal, slu
 		if envSlug == "" {
 			envSlug = Slugify(name)
 		}
-		checkSlug(v, "slug", envSlug)
+		checkEnvSlug(v, "slug", envSlug)
 		if err := v.err(); err != nil {
 			return err
 		}
@@ -514,7 +514,7 @@ func (s *Service) UpdateEnvironment(ctx context.Context, p *authz.Principal, slu
 		}
 		if in.Slug != nil {
 			env.Slug = *in.Slug
-			checkSlug(v, "slug", env.Slug)
+			checkEnvSlug(v, "slug", env.Slug)
 			meta["slug"] = env.Slug
 		}
 		if in.Position != nil {

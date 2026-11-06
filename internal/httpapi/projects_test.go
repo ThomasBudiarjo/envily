@@ -117,6 +117,13 @@ func TestProjectLifecycle(t *testing.T) {
 	if r := f.owner.do("POST", "/api/v1/projects/web-app/environments", map[string]string{"name": "qa env"}); r.status != 400 {
 		t.Fatalf("duplicate env: %d", r.status)
 	}
+	// Slugs used by UI routes next to /p/{project}/{env} are reserved.
+	if r := f.owner.do("POST", "/api/v1/projects/web-app/environments", map[string]string{"name": "Settings"}); r.status != 400 {
+		t.Fatalf("reserved env slug on create: %d", r.status)
+	}
+	if r := f.owner.do("PATCH", "/api/v1/projects/web-app/environments/qa-env", map[string]string{"slug": "compare"}); r.status != 400 {
+		t.Fatalf("reserved env slug on rename: %d", r.status)
+	}
 	f.owner.do("PATCH", "/api/v1/projects/web-app/environments/qa-env", map[string]any{"slug": "qa", "position": 0}).want(200)
 	envs := f.owner.do("GET", "/api/v1/projects/web-app/environments", nil).want(200).json()["items"].([]any)
 	if envs[0].(map[string]any)["slug"] != "development" || len(envs) != 4 {
