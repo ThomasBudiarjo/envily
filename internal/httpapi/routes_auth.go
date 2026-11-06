@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thomasbudiarjo/envily/internal/authz"
 	"github.com/thomasbudiarjo/envily/internal/service"
 	"github.com/thomasbudiarjo/envily/internal/store"
 )
@@ -248,7 +249,14 @@ func (h *Handler) createMyToken(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) revokeMyToken(w http.ResponseWriter, r *http.Request) error {
-	if err := h.svc.RevokePersonalToken(r.Context(), principal(r), r.PathValue("id")); err != nil {
+	p, id := principal(r), r.PathValue("id")
+	if id == "current" {
+		if p.Type != authz.ActorPersonalToken {
+			return badRequest("only a personal token can revoke itself with \"current\"")
+		}
+		id = p.ID
+	}
+	if err := h.svc.RevokePersonalToken(r.Context(), p, id); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)

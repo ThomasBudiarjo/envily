@@ -132,6 +132,10 @@ func (h *Handler) routes(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/v1/projects/{p}/environments/{env}", h.authed(h.deleteEnvironment))
 	mux.HandleFunc("GET /api/v1/projects/{p}/audit", h.authed(h.projectAudit))
 	mux.HandleFunc("GET /api/v1/projects/{p}/compare", h.authed(h.compare))
+	mux.HandleFunc("GET /api/v1/projects/{p}/service-tokens", h.authed(h.listServiceTokens))
+	mux.HandleFunc("POST /api/v1/projects/{p}/service-tokens", h.authed(h.createServiceToken))
+	mux.HandleFunc("DELETE /api/v1/projects/{p}/service-tokens/{id}", h.authed(h.revokeServiceToken))
+	mux.HandleFunc("GET /api/v1/token/info", h.authed(h.tokenInfo))
 
 	const sec = "/api/v1/projects/{p}/environments/{env}/secrets"
 	mux.HandleFunc("GET "+sec, h.authed(h.listSecrets))

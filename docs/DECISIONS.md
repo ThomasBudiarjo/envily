@@ -92,3 +92,15 @@ owner can neither leave nor be demoted (`last_owner`).
   never quote values.
 - Secret writes mark the project as updated (`updatedAt`), which the
   project list shows as "last changed".
+
+## CLI details
+
+- `DELETE /api/v1/me/tokens/current` revokes the calling personal token, so
+  `envily logout` can revoke its own token without storing its ID.
+- `envily run` drops `ENVILY_TOKEN` from the child's environment so the
+  credential is not inherited by the command.
+- The credentials file remembers the last server logged in to (`current`),
+  used when neither `--url`, `ENVILY_URL`, nor `.envily.json` names one.
+- Output is plain text without colour for now (the plan allows colour on a
+  TTY only; none is needed yet).
+- Argument and flag errors exit with 2, like other usage errors.
