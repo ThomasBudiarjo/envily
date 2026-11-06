@@ -36,6 +36,7 @@ type env struct {
 	t      *testing.T
 	srv    *httptest.Server
 	db     store.DB
+	dbPath string
 	clock  *fakeClock
 	logs   *bytes.Buffer
 	logMu  *sync.Mutex
@@ -73,7 +74,8 @@ func withRealLimits() envOption { return func(s *envSettings) { s.real = true } 
 func newEnv(t *testing.T, opts ...envOption) *env {
 	t.Helper()
 	ctx := context.Background()
-	d, err := sqlite.Open(ctx, filepath.Join(t.TempDir(), "envily.db"), true, nil)
+	dbPath := filepath.Join(t.TempDir(), "envily.db")
+	d, err := sqlite.Open(ctx, dbPath, true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +84,7 @@ func newEnv(t *testing.T, opts ...envOption) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e := &env{t: t, db: d, clock: &fakeClock{t: time.Date(2026, 11, 6, 9, 0, 0, 0, time.UTC)},
+	e := &env{t: t, db: d, dbPath: dbPath, clock: &fakeClock{t: time.Date(2026, 11, 6, 9, 0, 0, 0, time.UTC)},
 		logs: &bytes.Buffer{}, logMu: &sync.Mutex{}}
 	log := slog.New(slog.NewJSONHandler(lockedWriter{e.logMu, e.logs}, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
@@ -240,3 +242,5 @@ func (e *env) auditActions() []string {
 	}
 	return out
 }
+
+func auditFilterAll() store.AuditFilter { return store.AuditFilter{Limit: 100000} }

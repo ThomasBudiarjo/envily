@@ -18,10 +18,13 @@ var keyRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.\-]*$`)
 func ValidKey(key string) bool { return keyRe.MatchString(key) }
 
 // Parse reads KEY=VALUE lines. It supports comments, `export` prefixes,
-// single quotes (literal), and double quotes (escapes, multi-line).
+// single quotes (literal), and double quotes (escapes, multi-line). A key
+// may appear only once. Errors name line numbers and valid keys but never
+// quote other input, which could be a secret value.
 func Parse(src string) ([]Entry, error) {
 	src = strings.ReplaceAll(src, "\r\n", "\n")
 	var out []Entry
+	seen := map[string]int{}
 	lines := strings.Split(src, "\n")
 	for i := 0; i < len(lines); i++ {
 		line := strings.TrimSpace(lines[i])
@@ -35,8 +38,12 @@ func Parse(src string) ([]Entry, error) {
 		}
 		key := strings.TrimSpace(line[:eq])
 		if !ValidKey(key) {
-			return nil, fmt.Errorf("line %d: invalid key %q", i+1, key)
+			return nil, fmt.Errorf("line %d: invalid key", i+1)
 		}
+		if first, dup := seen[key]; dup {
+			return nil, fmt.Errorf("line %d: duplicate key %s (first on line %d)", i+1, key, first)
+		}
+		seen[key] = i + 1
 		raw := strings.TrimLeft(line[eq+1:], " \t")
 		var value string
 		switch {

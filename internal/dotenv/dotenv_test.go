@@ -2,6 +2,7 @@ package dotenv
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -34,9 +35,18 @@ func TestParse(t *testing.T) {
 }
 
 func TestParseErrors(t *testing.T) {
-	for _, src := range []string{"NOEQUALS", "1BAD=x", "A=\"open", "A='open"} {
+	for _, src := range []string{"NOEQUALS", "1BAD=x", "A=\"open", "A='open", "A=1\nB=2\nA=3"} {
 		if _, err := Parse(src); err == nil {
 			t.Errorf("Parse(%q): expected error", src)
+		}
+	}
+}
+
+func TestParseErrorsDoNotEchoInput(t *testing.T) {
+	for _, src := range []string{"hunter2-secret-value", "my hunter2 secret=1", "A=\"hunter2"} {
+		_, err := Parse(src)
+		if err == nil || strings.Contains(err.Error(), "hunter2") {
+			t.Errorf("Parse(%q) error %v", src, err)
 		}
 	}
 }

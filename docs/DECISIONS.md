@@ -79,3 +79,16 @@ because project owners who are not admins cannot list instance users.
 
 Owners manage members; any member may also remove themselves. The last
 owner can neither leave nor be demoted (`last_owner`).
+
+## Secret writes
+
+- `PUT …/secrets/{key}` without `comment` keeps the current comment; send
+  `"comment": ""` to clear it.
+- Import skips keys whose value is unchanged (no new version), so importing
+  the same file twice is a no-op. The response reports `unchanged`.
+- A batch applies deletes, then renames, then upserts, so a key can be
+  deleted and another renamed onto it in one save.
+- Parse and validation errors for imports name the line and the key but
+  never quote values.
+- Secret writes mark the project as updated (`updatedAt`), which the
+  project list shows as "last changed".

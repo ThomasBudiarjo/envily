@@ -131,4 +131,17 @@ func (h *Handler) routes(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/v1/projects/{p}/environments/{env}", h.authed(h.updateEnvironment))
 	mux.HandleFunc("DELETE /api/v1/projects/{p}/environments/{env}", h.authed(h.deleteEnvironment))
 	mux.HandleFunc("GET /api/v1/projects/{p}/audit", h.authed(h.projectAudit))
+	mux.HandleFunc("GET /api/v1/projects/{p}/compare", h.authed(h.compare))
+
+	const sec = "/api/v1/projects/{p}/environments/{env}/secrets"
+	mux.HandleFunc("GET "+sec, h.authed(h.listSecrets))
+	mux.HandleFunc("POST "+sec+":batch", h.authed(h.batchSecrets))
+	mux.HandleFunc("POST "+sec+":import", h.authed(h.importSecrets))
+	mux.HandleFunc("GET "+sec+":export", h.authed(h.exportSecrets))
+	mux.HandleFunc("GET "+sec+"/{key}", h.authed(h.getSecret))
+	mux.HandleFunc("PUT "+sec+"/{key}", h.authed(h.putSecret))
+	mux.HandleFunc("PATCH "+sec+"/{key}", h.authed(h.renameSecret))
+	mux.HandleFunc("DELETE "+sec+"/{key}", h.authed(h.deleteSecret))
+	mux.HandleFunc("GET "+sec+"/{key}/versions", h.authed(h.secretVersions))
+	mux.HandleFunc("POST "+sec+"/{key}/rollback", h.authed(h.rollbackSecret))
 }
