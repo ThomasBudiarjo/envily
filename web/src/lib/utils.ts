@@ -28,10 +28,10 @@ export const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,62}$/;
 export function slugify(name: string): string {
 	return name
 		.toLowerCase()
-		.normalize('NFKD')
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-+|-+$/g, '')
-		.slice(0, 63);
+		.slice(0, 63)
+		.replace(/-+$/, '');
 }
 
 export function downloadBlob(blob: Blob, filename: string) {
@@ -46,4 +46,10 @@ export function downloadBlob(blob: Blob, filename: string) {
 /** ISO time `days` days from now, or undefined for "never". */
 export function expiryFromDays(days: number): string | undefined {
 	return days > 0 ? new Date(Date.now() + days * 86_400_000).toISOString() : undefined;
+}
+
+/** A post-login target: only same-origin absolute paths, else "/". */
+export function safeNext(next: string | null): string {
+	if (!next || !next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\')) return '/';
+	return next;
 }

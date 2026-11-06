@@ -29,6 +29,10 @@ export default defineConfig({
 			}
 		})
 	],
+	build: {
+		// Never inline assets as data: URIs; the CSP allows fonts from 'self' only.
+		assetsInlineLimit: 0
+	},
 	server: {
 		port: 5173,
 		strictPort: true,

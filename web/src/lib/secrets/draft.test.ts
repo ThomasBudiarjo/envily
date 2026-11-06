@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SecretItem } from '#lib/api/types.js';
-import { buildBatch, fromServer, newRow, pendingCount, rowState, validate } from './draft';
+import { buildBatch, fromServer, newRow, pendingCount, rebase, rowState, validate } from './draft';
 
 const item = (key: string, version: number, extra: Partial<SecretItem> = {}): SecretItem => ({
 	key,
@@ -96,5 +96,45 @@ describe('validate', () => {
 		n.key = 'BIG';
 		n.value = 'é'.repeat(32 * 1024 + 1); // 2 bytes each → just over 64 KiB
 		expect(validate([n]).get(n.id)).toMatch(/64 KiB/);
+	});
+});
+
+describe('rebase', () => {
+	it('drops conflicting edits, keeps the rest, and drops edits whose secret moved on', () => {
+		const old = fromServer([item('A', 1), item('B', 1), item('C', 1)]);
+		for (const r of old) {
+			r.value = 'mine-' + r.key;
+			r.loadedValue = 'theirs';
+		}
+		const fresh = newRow();
+		fresh.key = 'NEW';
+		const clash = newRow();
+		clash.key = 'B';
+		// A conflicted; C was changed on the server (version 2) without being reported.
+		const rows = rebase(
+			[fresh, clash, ...old],
+			[item('A', 2), item('B', 1), item('C', 2)],
+			new Set(['A', 'B'])
+		);
+		expect(rows.map((r) => [r.key, rowState(r)])).toEqual([
+			['NEW', 'new'],
+			['A', 'clean'],
+			['B', 'clean'],
+			['C', 'clean']
+		]);
+		const b = rows.find((r) => r.key === 'B')!;
+		expect(b.value).toBeUndefined();
+	});
+
+	it('keeps a non-conflicting edit with the same version', () => {
+		const old = fromServer([item('A', 1), item('KEEP', 3)]);
+		old[1].value = 'edited';
+		old[1].loadedValue = 'orig';
+		const rows = rebase(old, [item('A', 2), item('KEEP', 3)], new Set(['A']));
+		const keep = rows.find((r) => r.key === 'KEEP')!;
+		expect(rowState(keep)).toBe('changed');
+		expect(buildBatch(rows).upserts).toEqual([
+			{ key: 'KEEP', value: 'edited', expectedVersion: 3 }
+		]);
 	});
 });

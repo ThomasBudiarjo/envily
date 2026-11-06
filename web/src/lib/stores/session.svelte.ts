@@ -1,4 +1,4 @@
-import { getMe } from '#lib/api/auth.js';
+import { getMe, getSetupStatus } from '#lib/api/auth.js';
 import { ApiError } from '#lib/api/client.js';
 import type { Me } from '#lib/api/types.js';
 
@@ -6,6 +6,7 @@ import type { Me } from '#lib/api/types.js';
 class Session {
 	me = $state<Me | null>(null);
 	loaded = $state(false);
+	needsSetup = $state(false);
 
 	get user() {
 		return this.me?.user ?? null;
@@ -17,6 +18,9 @@ class Session {
 
 	/** Loads /auth/me; a 401 leaves the session empty. */
 	async load(): Promise<Me | null> {
+		if (!this.loaded) this.needsSetup = (await getSetupStatus()).needsSetup;
+		this.loaded = true;
+		if (this.needsSetup) return (this.me = null);
 		try {
 			this.me = await getMe();
 		} catch (e) {

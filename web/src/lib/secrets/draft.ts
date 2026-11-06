@@ -127,3 +127,30 @@ export function conflictRows(rows: Row[], details: Record<string, string>): Row[
 	const keys = new Set(Object.keys(details));
 	return rows.filter((r) => keys.has(r.key) || (r.original && keys.has(r.original.key)));
 }
+
+/**
+ * Rebuilds rows from a fresh server list, keeping local edits except for
+ * keys in `drop` (the conflicting ones) and rows whose secret changed on the
+ * server meanwhile. New rows are kept unless their key is dropped.
+ */
+export function rebase(old: Row[], fresh: SecretItem[], drop: Set<string>): Row[] {
+	const rows = fromServer(fresh);
+	const byKey = new Map(rows.map((r) => [r.key, r]));
+	const added: Row[] = [];
+	for (const o of old) {
+		if (o.original === null) {
+			if (!drop.has(o.key)) added.push(o);
+			continue;
+		}
+		if (rowState(o) === 'clean' || drop.has(o.original.key) || drop.has(o.key)) continue;
+		const r = byKey.get(o.original.key);
+		if (!r || r.original?.version !== o.original.version) continue;
+		r.key = o.key;
+		r.value = o.value;
+		r.loadedValue = o.loadedValue;
+		r.comment = o.comment;
+		r.loadedComment = o.loadedComment;
+		r.deleted = o.deleted;
+	}
+	return [...added, ...rows];
+}

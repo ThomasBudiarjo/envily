@@ -83,9 +83,9 @@ export async function rawRequest(path: string, opts: RequestOptions = {}): Promi
 function redirectFor(err: ApiError) {
 	const here = location.pathname;
 	if (err.status === 401 && !publicPaths.includes(here)) {
-		void goto('/login?next=' + encodeURIComponent(here + location.search), { replaceState: true });
+		void goto('/login?next=' + encodeURIComponent(here + location.search), { replace: true });
 	} else if (err.code === 'password_change_required' && here !== '/change-password') {
-		void goto('/change-password', { replaceState: true });
+		void goto('/change-password', { replace: true });
 	}
 }
 
