@@ -1,0 +1,45 @@
+version: "2"
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - errorlint
+    - gosec
+    - misspell
+    - nilerr
+    - revive
+    - sqlclosecheck
+    - unconvert
+    - forbidigo
+  settings:
+    forbidigo:
+      forbid:
+        # Only internal/crypto may use AEAD primitives directly; nonces come from crypto/rand.
+        - pattern: ^chacha20poly1305\.
+        - pattern: ^cipher\.
+        - pattern: ^rand\.(Int|Intn|Float64|Read|Seed|Shuffle|Perm)$
+          pkg: ^math/rand
+      analyze-types: true
+    revive:
+      rules:
+        - name: exported
+          disabled: true
+        - name: package-comments
+          disabled: true
+    gosec:
+      excludes:
+        - G104 # unhandled errors are covered by errcheck
+        - G117 # field names such as Password/Token are DTOs, not leaks
+  exclusions:
+    generated: strict
+    presets:
+      - std-error-handling
+    rules:
+      - path: internal/crypto/
+        linters: [forbidigo]
+      - path: _test\.go
+        linters: [gosec, forbidigo, bodyclose]
+formatters:
+  enable:
+    - gofmt
+    - goimports
