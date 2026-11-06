@@ -38,6 +38,7 @@ build: web
 ## generate: regenerate sqlc code
 generate:
 	sqlc generate
+	go generate ./internal/store/...
 
 ## test: Go tests (SQLite) and frontend unit tests
 test: test-go test-web
@@ -50,7 +51,7 @@ test-web:
 
 ## test-pg: store and API tests against PostgreSQL (testcontainers or ENVILY_TEST_POSTGRES_DSN)
 test-pg:
-	ENVILY_TEST_POSTGRES=1 go test ./internal/store/... ./internal/httpapi/...
+	ENVILY_TEST_POSTGRES=1 go test -count=1 ./internal/store/... ./internal/httpapi/...
 
 ## e2e: build, start a throwaway server, and run Playwright
 e2e: build

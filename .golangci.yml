@@ -37,7 +37,7 @@ linters:
     rules:
       - path: internal/crypto/
         linters: [forbidigo]
-      - path: _test\.go
+      - path: (_test\.go|internal/store/storetest/)
         linters: [gosec, forbidigo, bodyclose]
 formatters:
   enable:

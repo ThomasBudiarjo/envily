@@ -1,0 +1,23 @@
+version: "2"
+sql:
+  - engine: sqlite
+    schema: internal/store/migrations/sqlite
+    queries: sql/sqlite/queries
+    gen:
+      go:
+        package: db
+        out: internal/store/sqlite/db
+        query_parameter_limit: 0
+        overrides:
+          - column: users.is_admin
+            go_type: bool
+          - column: users.must_change_password
+            go_type: bool
+  - engine: postgresql
+    schema: internal/store/migrations/postgres
+    queries: sql/postgres/queries
+    gen:
+      go:
+        package: db
+        out: internal/store/postgres/db
+        query_parameter_limit: 0
