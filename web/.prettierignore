@@ -1,0 +1,8 @@
+build
+.svelte-kit
+node_modules
+pnpm-lock.yaml
+pnpm-workspace.yaml
+test-results
+playwright-report
+embed.go
